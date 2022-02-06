@@ -7,7 +7,6 @@ local MoneyController = Knit.CreateController {
 }
 
 function MoneyController:KnitStart()
-    -- Only call Knit.GetService once
     local MoneyService = Knit.GetService("MoneyService")
 
     MoneyService.MoneyChanged:Connect(function(money)

@@ -35,13 +35,13 @@ end
 function MoneyService:KnitStart()
    print("MoneyService started")
 
-   -- while true do
-   --    task.wait(1)
+   while true do
+      task.wait(1)
 
-   --    for _,player in ipairs(Players:GetPlayers()) do
-   --       self:AddMoney(player, math.random(1, 10))
-   --    end
-   -- end
+      for _,player in ipairs(Players:GetPlayers()) do
+         self:AddMoney(player, math.random(1, 10))
+      end
+   end
 
 end
 
