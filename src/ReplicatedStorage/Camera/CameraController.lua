@@ -21,11 +21,11 @@ local CameraController = Knit.CreateController {
     scrollConn = nil,
     mouse = nil,
     keyboard = nil,
-    sens = 3.5,
+    sens = 0.5,
     zoomSens = 2.5,
     horizontalAngle = 0,
     verticalAngle = 0,
-    verticalAngleLimits = NumberRange.new(-45, 45),
+    verticalAngleLimits = NumberRange.new(-75, 75),
     lerpSpeed = 0.5
 }
 
@@ -45,15 +45,18 @@ function CameraController:Lock(rootPart, character)
 
         local mouseDelta = UserInputService:GetMouseDelta() * self.sens
 
-        self.horizontalAngle = self.horizontalAngle - mouseDelta.X / camera.ViewportSize.X
-        self.verticalAngle = self.verticalAngle - mouseDelta.Y / camera.ViewportSize.Y
-        self.verticalAngle = math.rad(math.clamp(math.deg(self.verticalAngle), self.verticalAngleLimits.Min,
-            self.verticalAngleLimits.Max))
-
         local offset = Vector3.new(self.offset.X, self.offset.Y, self.currentZoom)
 
-        local newCameraCFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, self.horizontalAngle, 0) *
-                                    CFrame.Angles(self.verticalAngle, 0, 0) * CFrame.new(offset)
+        self.horizontalAngle = self.horizontalAngle - mouseDelta.X
+        self.verticalAngle = math.clamp(self.verticalAngle - mouseDelta.Y * 0.4, -75, 75)
+
+        local startCFrame = CFrame.new(rootPart.CFrame.Position) * CFrame.Angles(0, math.rad(self.horizontalAngle), 0) *
+                                CFrame.Angles(math.rad(self.verticalAngle), 0, 0)
+
+        local cameraCFrame = startCFrame:ToWorldSpace(CFrame.new(offset.X, offset.Y, offset.Z))
+        local cameraFocus = startCFrame:ToWorldSpace(CFrame.new(offset.X, offset.Y, -10000))
+
+        local newCameraCFrame = CFrame.new(cameraCFrame.Position, cameraFocus.Position)
 
         newCameraCFrame = camera.CFrame:Lerp(newCameraCFrame, self.lerpSpeed)
 
@@ -74,8 +77,7 @@ function CameraController:Lock(rootPart, character)
         end
 
         if self.strafeMode then
-            local newHumanoidRootPartCFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, self.horizontalAngle, 0)
-            rootPart.CFrame = rootPart.CFrame:Lerp(newHumanoidRootPartCFrame, self.lerpSpeed / 2)
+            rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(-mouseDelta.X), 0)
         end
 
         camera.CFrame = newCameraCFrame
