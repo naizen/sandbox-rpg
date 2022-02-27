@@ -1,14 +1,10 @@
-local ServerStorage = game:GetService("ServerStorage")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local Loader = require(ReplicatedStorage.Packages.Loader)
 
-for _,v in ipairs(ServerStorage.Source:GetDescendants()) do
-   if v:IsA("ModuleScript") and v.Name:match("Service$") then
-      require(v)
-   end
-end
+Knit.AddServices(script.Parent.Services)
 
 Knit.Start():andThen(function()
-   print("Knit started")
+    Loader.LoadChildren(script.Parent.Components)
 end):catch(warn)

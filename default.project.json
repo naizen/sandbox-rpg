@@ -1,5 +1,5 @@
 {
-  "name": "knit-tutorial",
+  "name": "KnitRPG",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
@@ -21,6 +21,12 @@
       "$className": "ServerStorage",
       "Source": {
         "$path": "src/ServerStorage"
+      }
+    },
+    "StarterGui": {
+      "$className": "StarterGui",
+      "Source": {
+        "$path": "src/StarterGui"
       }
     },
     "StarterPlayer": {
