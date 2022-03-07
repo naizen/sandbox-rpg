@@ -1,10 +1,15 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local Debris = game:GetService("Debris")
+local ServerStorage = game:GetService("ServerStorage")
 local PathfindingService = game:GetService("PathfindingService")
 
+local Knit = require(ReplicatedStorage.Packages.Knit)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
+
+local Prefabs = game:GetService("ServerStorage").Prefabs
+local LootTable = require(ServerStorage.Source.LootTable)
 
 local DEBRIS_TIME = 5
 local SHOW_VISUAL_WAYPOINTS = false
@@ -32,6 +37,7 @@ function Enemy:Construct()
     self.attackDamage = self.Instance:GetAttribute("AttackDamage")
     self.attackDistance = self.Instance:GetAttribute("AttackDistance")
     self.detectDistance = self.Instance:GetAttribute("DetectDistance")
+    self.xpReward = self.Instance:GetAttribute("XpReward")
 
     -- Pathfinding
     self.path = nil
@@ -113,11 +119,30 @@ end
 
 function Enemy:OnDeath()
     self.dead = true
+
+    if self.target then
+        local statsService = Knit.GetService('StatsService')
+        statsService:UpdateStat(self.target, 'overall', 'xp', self.xpReward)
+    end
+
     self:ResetTarget()
 
     self.Instance.PrimaryPart.Anchored = true
 
     self:PlayAnim("Death", "End")
+
+    local lootTable = LootTable[self.Instance.Name]
+
+    local lootName = self:GetRandomLoot(lootTable)
+    local item = Prefabs:FindFirstChild(lootName)
+
+    if item then
+        local lootItem = item:Clone()
+        lootItem.Handle.CFrame = self.Instance.Feet.CFrame
+        lootItem.Handle.CanCollide = false
+        lootItem.Handle.Anchored = true
+        lootItem.Parent = workspace
+    end
 
     Debris:AddItem(self.Instance, DEBRIS_TIME)
 end
@@ -310,6 +335,21 @@ function Enemy:ChaseTarget()
 
         self.lastChaseTime = tick()
         self.chaseDebounce = false
+    end
+end
+
+function Enemy:GetRandomLoot(lootTable)
+    local sum = 0
+    for _, chance in pairs(lootTable) do
+        sum = sum + chance
+    end
+    local randNum = math.random(sum)
+    for itemName, chance in pairs(lootTable) do
+        if randNum <= chance then
+            return itemName
+        else
+            randNum = randNum - chance
+        end
     end
 end
 

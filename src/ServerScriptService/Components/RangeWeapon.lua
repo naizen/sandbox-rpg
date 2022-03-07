@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Knit = require(ReplicatedStorage.Packages.Knit)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 
@@ -25,6 +26,7 @@ function RangeWeapon:Construct()
 end
 
 function RangeWeapon:Start()
+    local StatsService = Knit.GetService("StatsService")
     local arrow
     local arrowWeld
     local holdTime = 0
@@ -126,6 +128,8 @@ function RangeWeapon:Start()
 
                 if humanoid and humanoid.Health > 0 then
                     humanoid:TakeDamage(ARROW_DMG)
+
+                    StatsService:UpdateStat(player, 'range', 'xp', 10)
 
                     if damagedEvent then
                         damagedEvent:Fire(player)

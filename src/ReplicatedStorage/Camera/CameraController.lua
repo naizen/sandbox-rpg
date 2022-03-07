@@ -1,8 +1,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
+local ContextActionService = game:GetService("ContextActionService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
+local Trove = require(ReplicatedStorage.Packages.Trove)
 local Input = require(ReplicatedStorage.Packages.Input)
 local Mouse = Input.Mouse
 local Keyboard = Input.Keyboard
@@ -12,24 +14,31 @@ local MAX_ZOOM = 20
 
 local CameraController = Knit.CreateController {
     Name = "CameraController",
-    locked = true,
+    locked = false,
     strafeMode = false,
     renderName = "CustomCam",
-    priority = Enum.RenderPriority.Camera.Value - 10,
+    freezeMovementName = "FreezeMovement",
+    priority = Enum.RenderPriority.Camera.Value + 1,
     offset = Vector3.new(2, 2, MIN_ZOOM),
     currentZoom = MIN_ZOOM + 10,
     scrollConn = nil,
     mouse = nil,
     keyboard = nil,
-    sens = 0.5,
+    mouseSens = 0.3,
     zoomSens = 2.5,
     horizontalAngle = 0,
     verticalAngle = 0,
     verticalAngleLimits = NumberRange.new(-75, 75),
-    lerpSpeed = 0.5
+    lerpSpeed = 0.5,
+    inputTrove = Trove.new(),
+    menuOpen = false
 }
 
 function CameraController:Lock(rootPart, character)
+    if self.locked then
+        return
+    end
+
     self.locked = true
 
     local camera = workspace.CurrentCamera
@@ -41,16 +50,18 @@ function CameraController:Lock(rootPart, character)
     end)
 
     RunService:BindToRenderStep(self.renderName, self.priority, function()
-        UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        if not self.menuOpen then
+            UserInputService.MouseBehavior = Enum.MouseBehavior.LockCenter
+        end
 
-        local mouseDelta = UserInputService:GetMouseDelta() * self.sens
+        local mouseDelta = UserInputService:GetMouseDelta() * self.mouseSens
 
         local offset = Vector3.new(self.offset.X, self.offset.Y, self.currentZoom)
 
         self.horizontalAngle = self.horizontalAngle - mouseDelta.X
         self.verticalAngle = math.clamp(self.verticalAngle - mouseDelta.Y * 0.4, -75, 75)
 
-        local startCFrame = CFrame.new(rootPart.CFrame.Position) * CFrame.Angles(0, math.rad(self.horizontalAngle), 0) *
+        local startCFrame = CFrame.new(rootPart.Position) * CFrame.Angles(0, math.rad(self.horizontalAngle), 0) *
                                 CFrame.Angles(math.rad(self.verticalAngle), 0, 0)
 
         local cameraCFrame = startCFrame:ToWorldSpace(CFrame.new(offset.X, offset.Y, offset.Z))
@@ -61,15 +72,18 @@ function CameraController:Lock(rootPart, character)
         newCameraCFrame = camera.CFrame:Lerp(newCameraCFrame, self.lerpSpeed)
 
         -- Handle obstructions
+        local head = character:FindFirstChild('Head')
+        local raycastStartPos = head.Position + Vector3.new(0, head.Size.Y, 0)
+
         local raycastParams = RaycastParams.new()
         raycastParams.FilterDescendantsInstances = {character}
         raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        local raycastResult = workspace:Raycast(rootPart.Position, newCameraCFrame.Position - rootPart.Position,
+        local raycastResult = workspace:Raycast(raycastStartPos, newCameraCFrame.Position - raycastStartPos,
             raycastParams)
 
         if (raycastResult ~= nil) then
-            local obstructionDisplacement = (raycastResult.Position - rootPart.Position)
-            local obstructionPosition = rootPart.Position +
+            local obstructionDisplacement = (raycastResult.Position - raycastStartPos)
+            local obstructionPosition = raycastStartPos +
                                             (obstructionDisplacement.Unit * (obstructionDisplacement.Magnitude - 0.1))
             local x, y, z, r00, r01, r02, r10, r11, r12, r20, r21, r22 = newCameraCFrame:GetComponents()
             newCameraCFrame = CFrame.new(obstructionPosition.x, obstructionPosition.y, obstructionPosition.z, r00, r01,
@@ -85,6 +99,10 @@ function CameraController:Lock(rootPart, character)
 end
 
 function CameraController:RotateTowardsCamera(rootPart)
+    if self.menuOpen then
+        return
+    end
+
     local camera = workspace.CurrentCamera
 
     local camLV = camera.CFrame.LookVector
@@ -94,6 +112,10 @@ function CameraController:RotateTowardsCamera(rootPart)
 end
 
 function CameraController:Unlock()
+    if not self.locked then
+        return
+    end
+
     self.locked = false
 
     UserInputService.MouseBehavior = Enum.MouseBehavior.Default
@@ -114,12 +136,8 @@ function CameraController:Zoom(scrollAmount)
     self.currentZoom = zoomAmount
 end
 
-function CameraController:KnitInit()
-end
-
-function CameraController:KnitStart()
-    self.mouse = Mouse.new()
-    self.keyboard = Keyboard.new()
+function CameraController:SetupCustomCamera()
+    local UIController = Knit.GetController("UIController")
 
     Knit.Player.CharacterAdded:Connect(function(character)
         local humanoid = character:WaitForChild("Humanoid")
@@ -127,27 +145,51 @@ function CameraController:KnitStart()
 
         self:Lock(rootPart, character)
 
-        self.mouse.LeftDown:Connect(function()
+        self.inputTrove:Add(self.mouse.LeftDown:Connect(function()
             self:RotateTowardsCamera(rootPart)
             humanoid.AutoRotate = false
             self.strafeMode = true
-        end)
+        end))
 
-        self.mouse.LeftUp:Connect(function()
+        self.inputTrove:Add(self.mouse.LeftUp:Connect(function()
             humanoid.AutoRotate = true
             self.strafeMode = false
-        end)
+        end))
 
-        self.keyboard.KeyDown:Connect(function(keycode)
-            if keycode == Enum.KeyCode.M then
-                if self.locked then
-                    self:Unlock()
-                else
-                    self:Lock(rootPart, character)
-                end
+        local function freezeMovement()
+            ContextActionService:BindAction(self.freezeMovementName, function()
+                return Enum.ContextActionResult.Sink
+            end, false, unpack(Enum.PlayerActions:GetEnumItems()))
+        end
+
+        self.inputTrove:Add(UIController.MenuToggled:Connect(function(menuOpen)
+            self.menuOpen = menuOpen
+
+            if menuOpen then
+                freezeMovement()
+                self:Unlock()
+            else
+                ContextActionService:UnbindAction(self.freezeMovementName)
+                self:Lock(rootPart, character)
             end
-        end)
+        end))
     end)
+
+    Knit.Player.CharacterRemoving:Connect(function()
+        self.inputTrove:Clean()
+
+        self:Unlock()
+    end)
+end
+
+function CameraController:KnitInit()
+end
+
+function CameraController:KnitStart()
+    self.mouse = Mouse.new()
+    self.keyboard = Keyboard.new()
+
+    self:SetupCustomCamera()
 end
 
 return CameraController

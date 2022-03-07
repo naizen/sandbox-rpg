@@ -13,29 +13,26 @@ local InventoryService = Knit.CreateService {
     Client = {}
 }
 
+local INIT_ITEMS = {}
+
 function InventoryService:KnitInit()
     local function LoadInventory(player)
-        local success, playerInventory = pcall(function()
+        local success, inventory = pcall(function()
             return InventoryDataStore:GetAsync(player.UserId)
         end)
 
-        if success and playerInventory then
-            -- print("Loaded player inventory")
+        local playerInventory = INIT_ITEMS
 
-            for _, toolName in pairs(playerInventory) do
-                -- print("Adding item: ", toolName)
+        if success and inventory and table.getn(inventory) > 0 then
+            playerInventory = inventory
+        end
 
-                local tool = Prefabs:FindFirstChild(toolName)
+        for _, itemName in pairs(playerInventory) do
+            local item = Prefabs:FindFirstChild(itemName)
 
-                if tool then
-                    tool:Clone().Parent = player.Backpack
-                    tool:Clone().Parent = player.StarterGear
-                end
+            if item then
+                item:Clone().Parent = player
             end
-        else
-            -- print("Could not load player inventory")
-            -- We can initialize some starting items here
-            playerInventory = {}
         end
 
         player.CharacterRemoving:Connect(function(character)
@@ -47,9 +44,9 @@ function InventoryService:KnitInit()
         local playerTools = {}
 
         -- Get current tools in backpack to save
-        for _, tool in pairs(player.Backpack:GetChildren()) do
-            table.insert(playerTools, tool.Name)
-        end
+        -- for _, tool in pairs(player.Backpack:GetChildren()) do
+        --     table.insert(playerTools, tool.Name)
+        -- end
 
         local success = pcall(function()
             InventoryDataStore:setAsync(player.UserId, playerTools)
@@ -67,7 +64,6 @@ function InventoryService:KnitInit()
 end
 
 function InventoryService:KnitStart()
-
 end
 
 return InventoryService

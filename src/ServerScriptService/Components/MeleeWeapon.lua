@@ -1,5 +1,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Knit = require(ReplicatedStorage.Packages.Knit)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local RaycastHitbox = require(ReplicatedStorage.Packages.Hitbox)
@@ -10,22 +11,26 @@ local MeleeWeapon = Component.new({
 
 function MeleeWeapon:Construct()
     self.trove = Trove.new()
+    self.hitboxTrove = self.trove:Extend()
+
 end
 
 function MeleeWeapon:Start()
-    local hitboxTrove = Trove.new()
-    self.trove:Add(hitboxTrove)
+    local StatsService = Knit.GetService('StatsService')
 
-    local function OnHit(_, humanoid)
+    local function OnHit(player, humanoid)
         humanoid:TakeDamage(self.damage)
+        StatsService:UpdateStat(player, 'strength', 'xp', 10)
     end
 
     local function OnAttack(player)
-        local character = player.Character or player.CharacterAdded:Wait()
-        self.raycastParams.FilterDescendantsInstances = {self.Instance, character}
+        self.raycastParams.FilterDescendantsInstances = {self.Instance, player.Character}
 
         self.hitbox:HitStart()
-        self.hitbox.OnHit:Connect(OnHit)
+
+        self.hitbox.OnHit:Connect(function(_, humanoid)
+            OnHit(player, humanoid)
+        end)
     end
 
     local function OnEquipped()
@@ -36,16 +41,14 @@ function MeleeWeapon:Start()
         self.hitbox.Visualizer = true
         self.raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
         self.hitbox.RaycastParams = self.raycastParams
-
-        hitboxTrove:Add(self.hitbox)
     end
 
     local function OnUnequipped()
-        hitboxTrove:Clean()
+        self.hitbox:HitStop()
     end
 
     local function OnDropped()
-        hitboxTrove:Clean()
+        self.hitbox:HitStop()
     end
 
     self.trove:Add(self.Instance.Equipped:Connect(OnEquipped))

@@ -1,10 +1,14 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
 local ForLocalPlayer = require(ReplicatedStorage.Source.ComponentExtensions.ForLocalPlayer)
+local Input = require(ReplicatedStorage.Packages.Input)
+local DropEvent = ReplicatedStorage.Events.Drop
+local EquipEvent = ReplicatedStorage.Events.Equip
+
+local Keyboard = Input.Keyboard
 
 local ClientItem = Component.new({
     Tag = "Item",
@@ -13,24 +17,27 @@ local ClientItem = Component.new({
 
 function ClientItem:Construct()
     self.trove = Trove.new()
-    self.playerTrove = Trove.new()
-    self.trove:Add(self.playerTrove)
+    self.playerTrove = self.trove:Extend()
 end
 
 function ClientItem:SetupForLocalPlayer()
-    local function OnUserInput(input, processed)
-        if processed then
-            return
-        end
+    local keyboard = Keyboard.new()
+    local equipped = false
 
-        if input.UserInputType == Enum.UserInputType.Keyboard then
-            if input.KeyCode == Enum.KeyCode.E then
-                self.Instance.Drop:FireServer()
-            end
+    local function OnKeyDown(keycode)
+        -- TODO: Replace with hotbar keybinds
+        if keycode == Enum.KeyCode.Q then
+            equipped = not equipped
+
+            print("ClientItem equip: ", equipped)
+
+            EquipEvent:FireServer(equipped)
+        elseif keycode == Enum.KeyCode.E then
+            DropEvent:FireServer()
         end
     end
 
-    self.playerTrove:Add(UserInputService.InputBegan:Connect(OnUserInput))
+    self.playerTrove:Add(keyboard.KeyDown:Connect(OnKeyDown))
 end
 
 function ClientItem:CleanupForLocalPlayer()
