@@ -1,11 +1,13 @@
 local StarterPlayer = game:GetService("StarterPlayer")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
 local Knit = require(ReplicatedStorage.Packages.Knit)
 local Component = require(ReplicatedStorage.Packages.Component)
 local Trove = require(ReplicatedStorage.Packages.Trove)
-local ForLocalPlayer = require(ReplicatedStorage.Source.ComponentExtensions.ForLocalPlayer)
+local Signal = require(ReplicatedStorage.Packages.Signal)
+local ForLocalPlayer = require(StarterPlayer.StarterPlayerScripts.Source.ComponentExtensions.ForLocalPlayer)
 local PlayerConfig = require(StarterPlayer.StarterPlayerScripts.Source.PlayerConfig)
-local PlayerController = Knit.GetController("PlayerController")
+local ClientItem = require(script.Parent.ClientItem)
 
 local ClientMeleeWeapon = Component.new({
     Tag = "MeleeWeapon",
@@ -15,18 +17,18 @@ local ClientMeleeWeapon = Component.new({
 function ClientMeleeWeapon:Construct()
     self.trove = Trove.new()
     self.playerTrove = self.trove:Extend()
-    self.weaponType = self.Instance:GetAttribute("WeaponType")
+    self.Attack = Signal.new()
 end
 
 function ClientMeleeWeapon:SetupForLocalPlayer()
-    local attackCount = 0
+    local PlayerController = Knit.GetController("PlayerController")
     local debounce = false
-    local timeBetweenAttacks = 0
-    local anims = PlayerConfig.Animations[self.weaponType]
+    local attackCount = 0
+    local timeBetweenAttacks = 0.35
+    local attackAnims = PlayerConfig.Animations[self.Instance.Name].Attack
 
-    local function OnActivated()
-        local attackAnims = anims.Attack
-        if debounce == false then
+    local function OnActivate()
+        if not debounce then
             debounce = true
             attackCount = attackCount + 1
 
@@ -34,17 +36,24 @@ function ClientMeleeWeapon:SetupForLocalPlayer()
 
             attackAnim:Play()
 
-            if attackCount >= 2 then attackCount = 0 end
+            if attackCount >= table.getn(attackAnims) then
+                attackCount = 0
+            end
 
-            self.Instance.Attack:FireServer()
+            -- local MeleeWeaponService = Knit.GetService("MeleeWeaponService")
+            -- MeleeWeaponService.Attack:Fire()
+            self.Attack:Fire()
 
             task.wait(timeBetweenAttacks)
-
             debounce = false
         end
     end
 
-    self.playerTrove:Add(self.Instance.Activated:Connect(OnActivated))
+    local item = self:GetComponent(ClientItem)
+
+    self.playerTrove:Add(item.Activate:Connect(function()
+        -- print("ClientMeleeWeapon item activated: ", self.Instance.Name)
+    end))
 end
 
 function ClientMeleeWeapon:CleanupForLocalPlayer()

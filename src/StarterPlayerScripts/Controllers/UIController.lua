@@ -4,6 +4,7 @@ local Knit = require(ReplicatedStorage.Packages.Knit)
 local Fusion = require(ReplicatedStorage.Packages.Fusion)
 local Input = require(ReplicatedStorage.Packages.Input)
 local Signal = require(ReplicatedStorage.Packages.Signal)
+local Keyboard = Input.Keyboard
 
 local New = Fusion.New
 local Children = Fusion.Children
@@ -79,7 +80,7 @@ function UIController:KnitInit()
         SetOverallXpProgress(stats)
     end)
 
-    local keyboard = Input.Keyboard.new()
+    local keyboard = Keyboard.new()
 
     keyboard.KeyDown:Connect(function(keycode)
         if keycode == Enum.KeyCode.M then
@@ -201,7 +202,7 @@ function UIController:InitMenu()
         ZIndexBehavior = "Sibling",
         Enabled = Computed(function()
             return false
-            --return self.menuOpen:get()
+            -- return self.menuOpen:get()
         end),
         [Children] = New "Frame" {
             Name = "Menu",

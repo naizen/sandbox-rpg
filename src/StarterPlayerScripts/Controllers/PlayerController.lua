@@ -21,7 +21,10 @@ local PlayerController = Knit.CreateController {
     HasDoubleJumped = false,
     StaminaChanged = Signal.new(),
     XpChanged = Signal.new(),
-    Humanoid = nil
+    Humanoid = nil,
+    EquippedItem = nil,
+    CurrentMovementAnim = nil,
+    CurrentSpeed = 0
 }
 
 function PlayerController:KnitInit()
@@ -91,13 +94,22 @@ function PlayerController:KnitInit()
             end
         end)
 
-        self:EnableDoubleJump(humanoid, animator)
+        self:EnableDoubleJump(humanoid)
+
+        humanoid.Running:Connect(function(speed)
+            self.CurrentSpeed = speed
+            self:UpdateMovementAnim()
+        end)
+
+        humanoid.Jumping:Connect(function()
+            self:SetCurrentMovementAnim(nil)
+        end)
 
         self.Humanoid = humanoid
     end)
 end
 
-function PlayerController:EnableDoubleJump(humanoid, animator)
+function PlayerController:EnableDoubleJump(humanoid)
     local oldPower = humanoid.JumpPower
 
     local function onJumpRequest()
@@ -110,9 +122,10 @@ function PlayerController:EnableDoubleJump(humanoid, animator)
             humanoid.JumpPower = oldPower * DOUBLE_JUMP_POWER_MULTIPLIER
             humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
 
-            local animTrack = self.LoadedAnimations[PlayerConfig.Animations.FrontFlip]
-            animTrack:Play()
-            animTrack:AdjustSpeed(1.2)
+            -- Special double jump animation
+            -- local animTrack = self.LoadedAnimations[PlayerConfig.Animations.FrontFlip]
+            -- animTrack:Play()
+            -- animTrack:AdjustSpeed(1.2)
         end
     end
 
@@ -128,6 +141,59 @@ function PlayerController:EnableDoubleJump(humanoid, animator)
     end)
 
     UserInputService.JumpRequest:Connect(onJumpRequest)
+end
+
+function PlayerController:Equip(item, equipped, playEquipAnim)
+    local equipAnimId = PlayerConfig.Animations[item.Name].Equip
+    local equipAnim = self.LoadedAnimations[equipAnimId]
+
+    if playEquipAnim then
+        equipAnim:Play()
+    end
+
+    if equipped then
+        self.EquippedItem = item
+    else
+        self.EquippedItem = nil
+    end
+
+    self:UpdateMovementAnim()
+end
+
+function PlayerController:SetCurrentMovementAnim(anim)
+    -- Stop previous movement anim
+    if self.CurrentMovementAnim and self.CurrentMovementAnim.IsPlaying then
+        self.CurrentMovementAnim:Stop()
+    end
+
+    self.CurrentMovementAnim = anim
+
+    if self.CurrentMovementAnim ~= nil then
+        self.CurrentMovementAnim:Play()
+    end
+end
+
+function PlayerController:UpdateMovementAnim()
+    if self.EquippedItem == nil then
+        self:SetCurrentMovementAnim(nil)
+        return
+    end
+
+    local idleAnimId = PlayerConfig.Animations[self.EquippedItem.Name].Idle
+    local idleAnim = self.LoadedAnimations[idleAnimId]
+
+    local runAnimId = PlayerConfig.Animations[self.EquippedItem.Name].Run
+    local runAnim = self.LoadedAnimations[runAnimId]
+
+    local movementAnim = idleAnim
+
+    if self.CurrentSpeed > 0.1 then
+        movementAnim = runAnim
+    end
+
+    if movementAnim ~= self.CurrentMovementAnim then
+        self:SetCurrentMovementAnim(movementAnim)
+    end
 end
 
 function PlayerController:KnitStart()
