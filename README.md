@@ -1,2 +1,2 @@
-# Survival RPG
-A Roblox Survival RPG using Knit
+# Sandbox RPG
+A Roblox Sandbox RPG using Knit
