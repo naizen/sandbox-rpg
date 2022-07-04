@@ -1,5 +1,5 @@
 [package]
-name = "nai/knit-rpg"
+name = "nai/sandbox-rpg"
 version = "0.1.0"
 registry = "https://github.com/UpliftGames/wally-index"
 realm = "shared"

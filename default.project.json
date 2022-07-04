@@ -1,5 +1,5 @@
 {
-  "name": "survival-rpg",
+  "name": "sandbox-rpg",
   "tree": {
     "$className": "DataModel",
     "ReplicatedStorage": {
